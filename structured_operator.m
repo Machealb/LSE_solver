@@ -15,7 +15,8 @@ function [Cfun, N] = structured_operator(n, d)
 
     % --- Step 1: Generate orthogonal matrix using built-in method
     P = gallery('orthog', n, 1);  % Fast and deterministic orthogonal matrix
-    ll = linspace(2,1,r);
+    % ll = linspace(2,1,r);
+    ll = ones(r,1);
     ll = ll(:);
 
     % --- Step 2: Define matrix-free operator
