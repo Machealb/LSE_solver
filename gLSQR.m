@@ -39,17 +39,24 @@ function [X, res, bnd] = gLSQR(A, L, b, Ca, k, tol, reorth, type)
         error('Not Enough Inputs')
     end
 
-    if (isa(A, 'function_handle') || isa(L, 'function_handle')) && tol1 == 0
+    if (isa(A, 'function_handle') || isa(L, 'function_handle')) && tol == 0
         error('Tol must not be 0 for funtional handles')
     end
 
-    [m, n] = size(A);   p = size(L,1);
-    if size(b,1) ~= m || size(L,2) ~= n
-        error('The dimensions are not consistent')
+    [m, n] = sizemm(A);   
+    [p,~] = sizemm(L);
+    % p = sizemm(L,1);
+    % if size(b,1) ~= m || size(L,2) ~= n
+    %     error('The dimensions are not consistent')
+    % end
+
+    if (isa(A, 'function_handle') || isa(L, 'function_handle'))
+        M = @(x) Mfun(x,A,L);
+    else
+        M = A'*A + L'*L;
     end
 
-    M = A'*A + L'*L;
-    M1 = M + 1e-3*speye(n);
+    % M1 = M + 1e-3*speye(n);
     % R = ichol(M+1e-12*speye(n));  % incomplete Cholesky to construct a preconditioner for Mx=y
     % Mp = pinv(full(M));
     if strcmp(type, 'semi') && tol == 0
@@ -73,7 +80,7 @@ function [X, res, bnd] = gLSQR(A, L, b, Ca, k, tol, reorth, type)
     u = b / bbeta;  
     U(:,1) = u;
     
-    rb = A' * u;  
+    rb = mvpt(A,u);   % A' * u;  
     
     if tol == 0 && strcmp(type, 'posi')
         r = M \ rb;
@@ -81,13 +88,20 @@ function [X, res, bnd] = gLSQR(A, L, b, Ca, k, tol, reorth, type)
         r = Mp * rb;
     else
         % r = pcg(M, rb, tol, 2*n);
-        r = pcg(M, rb, tol, 2*n, M1);
+        % r = pcg(M, rb, tol, 2*n, M1);
         % r = lsqr([A;L], [u;zeros(p,1)], tol, 2*n);
+        r = lsqr(@(z,tflag)afun(z,A,L,tflag),[u;zeros(p,1)],tol,2*n);
     end
 
-    alpha = sqrt(r'*M*r);
-    z  = r / alpha;     Z(:,1)  = z;
-    Zb(:,1) = M * z;
+    if (isa(A, 'function_handle') || isa(L, 'function_handle'))
+        alpha = sqrt(r'*M(r));
+        z  = r / alpha;     Z(:,1)  = z;
+        Zb(:,1) = M(z);
+    else
+        alpha = sqrt(r'*M*r);
+        z  = r / alpha;     Z(:,1)  = z;
+        Zb(:,1) = M * z;
+    end
     B(1,1)  = alpha;
 
     % Prepare for update procedure
@@ -100,7 +114,7 @@ function [X, res, bnd] = gLSQR(A, L, b, Ca, k, tol, reorth, type)
     for j = 1:k 
         fprintf('[gLSQR iterating...], step=%d--------\n', j);
         % compute u in 2-inner product
-        s = A * z - alpha * u;
+        s = mvp(A,z) - alpha * u;
         if reorth == 1
             for i = 1:j
                 s = s - U(:,i)*(U(:,i)'*s);  % MGS
@@ -132,15 +146,16 @@ function [X, res, bnd] = gLSQR(A, L, b, Ca, k, tol, reorth, type)
         B(j+1,j) = beta;
 
         % compute z in M-inner product
-        rb = A' * u;
+        rb = mvpt(A,u);    % A' * u;
         if tol == 0 && strcmp(type, 'posi')
             r = M \ rb;
         elseif tol == 0 && strcmp(type, 'semi')
             r = Mp * rb;
         else
             % r = pcg(M, rb, tol, 2*n);
-            r = pcg(M, rb, tol, 2*n, M1);
+            % r = pcg(M, rb, tol, 2*n, M1);
             % r = lsqr([A;L], [u;zeros(p,1)], tol, 2*n);
+            r = lsqr(@(z,tflag)afun(z,A,L,tflag),[u;zeros(p,1)],tol,2*n);
         end
 
         r = r - beta * z;
@@ -158,7 +173,12 @@ function [X, res, bnd] = gLSQR(A, L, b, Ca, k, tol, reorth, type)
             end
         end
         
-        alpha = sqrt(r'*M*r);
+        if (isa(A, 'function_handle') || isa(L, 'function_handle'))
+            alpha = sqrt(r'*M(r));
+        else
+            alpha = sqrt(r'*M*r);
+        end
+
         if alpha < 1e-16
             fprintf('[Breakdown...], alpha=%f, gLSQR breakdown at %d--\n', [alpha,j]);
             % U  = U(:,1:j+1);
@@ -173,7 +193,11 @@ function [X, res, bnd] = gLSQR(A, L, b, Ca, k, tol, reorth, type)
 
         z = r / alpha;
         Z(:,j+1) = z;
-        Zb(:,j+1)  = M * z;
+        if (isa(A, 'function_handle') || isa(L, 'function_handle'))
+            Zb(:,j+1)  = M(z);
+        else
+            Zb(:,j+1)  = M * z;
+        end
         B(j+1,j+1) = alpha;
 
         % Construct and apply orthogonal transformation
@@ -194,26 +218,40 @@ function [X, res, bnd] = gLSQR(A, L, b, Ca, k, tol, reorth, type)
         X(:,j) = x;
 
         % Compute the relative residual norm and its upper bound
-        rr = A' * (A*x-b);
-        if tol == 0 && strcmp(type, 'posi')
-            ss = M \ rr;
-        elseif tol == 0 && strcmp(type, 'semi')
-            ss = Mp * rr;
-            % ss = M \ rr;
+        % rr = A' * (A*x-b);
+        % if tol == 0 && strcmp(type, 'posi')
+        %     ss = M \ rr;
+        % elseif tol == 0 && strcmp(type, 'semi')
+        %     ss = Mp * rr;
+        %     % ss = M \ rr;
             
-        else
-            ss = pinv(full(M)) * rr;
-            % ss = pcg(M, rr, 1e-10, 2*n);
-            % ss = pcg(M, rr, 1e-4, 2*n, R, R');
-            % r = lsqr(M, rr,1e-10, 2*n);
-        end
+        % else
+        %     ss = pinv(full(M)) * rr;
+        %     % ss = pcg(M, rr, 1e-10, 2*n);
+        %     % ss = pcg(M, rr, 1e-4, 2*n, R, R');
+        %     % r = lsqr(M, rr,1e-10, 2*n);
+        % end
 
-        rn = sqrt(rr'*ss);
-        res(j) = rn / Ab; 
-        bnd(j) = alpha*beta*abs(yj(j)) / Ab;
+        % rn = sqrt(rr'*ss);
+        % res(j) = rn / Ab; 
+        % bnd(j) = alpha*beta*abs(yj(j)) / Ab;
         
     end
     
 end
     
-    
+
+%--------------------------------------------
+function y = afun(z, A, B, transp_flag)
+    if strcmp(transp_flag,'transp')   % y = (A(I_n-BB^T))' * z;
+        [m,~] = sizemm(A);
+        [p,~] = sizemm(B);
+        s = mvpt(A, z(1:m));
+        t = mvpt(B, z(m+1:m+p));
+        y = s + t;
+    elseif strcmp(transp_flag,'notransp') % y = (A(I_n-BB^T)) * z;
+        s = mvp(A, z);
+        t= mvp(B, z);
+        y = [s; t];
+    end
+end

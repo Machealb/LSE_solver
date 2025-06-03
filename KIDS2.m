@@ -29,25 +29,29 @@ function [x1, X2, res1, res2] = KIDS2(A, C, b, d, tol1, tol2, k2)
         error('Not Enough Inputs')
     end
 
-    [m, n] = size(A); 
-    [p, ~] = size(C);
-    if size(b,1) ~= m || size(C,2) ~= n || size(d,1) ~= p
-        error('The dimensions are not consistent')
-    end
+    % [m, n] = size(A); 
+    % [p, ~] = size(C);
+    % if size(b,1) ~= m || size(C,2) ~= n || size(d,1) ~= p
+    %     error('The dimensions are not consistent')
+    % end
 
-    kk = 50;
-    [~, ~, B, ~] = nsrGKB(A, C, ones(m,1), kk, 0, 1);
-    kk1 = size(B,2);
-    na = svd(B(kk1,kk1-1));
+    % kk = 50;
+    % [~, ~, B, ~] = nsrGKB(A, C, ones(m,1), kk, 0, 1);
+    % kk1 = size(B,2);
+    % na = svd(B(kk1,kk1-1));
+
+    na = 0.01;
 
     if tol1 == 0
         x1 = pinv(full(C)) * d;
     else
-        x1 = lsqr(C, d,tol1, 2*n);
+        x1 = lsqr(C, d,tol1, 1000);
     end
     
-    res1 = norm(C'*(C*x1-d)) / (norm(full(C))*norm(d));
-    b1 = b - A*x1;
+    % res1 = norm(C'*(C*x1-d)) / (norm(full(C))*norm(d));
+    res1 = 0;
+    % b1 = b - A*x1;
+    b1 = b - mvp(A,x1);
     [X2, res2, ~] = nsrLSQR(A, C, b1, na, k2, tol2, 1);
 
 end

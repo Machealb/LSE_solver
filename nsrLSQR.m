@@ -36,13 +36,14 @@ function [X, res, bnd] = nsrLSQR(A, C, b, na, k, tol, reorth)
         error('Tol must not be 0 for a funtional handel C')
     end
 
-    [m, n] = size(A); 
-    if size(b,1) ~= m || size(C,2) ~= n
-        error('The dimensions are not consistent')
-    end
+    [m, n] = sizemm(A); 
+    % if size(b,1) ~= m || size(C,2) ~= n
+    %     error('The dimensions are not consistent')
+    % end
     
     if tol==0
         P = eye(n) - pinv(full(C))*C;
+        % P = spdiags([zeros(n-300,1);ones(300,1)], 0, n, n); 
     end
 
     % declares the matrix size
@@ -61,11 +62,12 @@ function [X, res, bnd] = nsrLSQR(A, C, b, na, k, tol, reorth)
     u = b / bbeta;  
     U(:,1) = u;
     
-    rb = A' * u;  
+    rb = mvpt(A,u);    % A' * u;  
     if tol == 0
         r = P * rb;
     else
-        t = lsqr(C, C*rb,tol, 2*n);
+        % t = lsqr(C, C*rb,tol, 2*n);
+        t = lsqr(C, mvp(C,rb),tol, 2*n);
         r = rb - t;
     end
 
@@ -77,7 +79,7 @@ function [X, res, bnd] = nsrLSQR(A, C, b, na, k, tol, reorth)
     for j = 1:k 
         fprintf('[nsr-LSQR iterating...], step=%d--------\n', j);
         % compute u in 2-inner product
-        s = A * z - alpha * u;
+        s = mvp(A,z) - alpha * u;
         if reorth == 1
             for i = 1:j
                 s = s - U(:,i)*(U(:,i)'*s);  % MGS
@@ -108,11 +110,12 @@ function [X, res, bnd] = nsrLSQR(A, C, b, na, k, tol, reorth)
         B(j+1,j) = beta;
 
         % compute z in 2-inner product
-        rb = A' * u;
+        rb = mvpt(A,u);    % A' * u;  
         if tol == 0
             r = P * rb;
         else
-            t = lsqr(C, C*rb,tol, 2*n);
+            % t = lsqr(C, C*rb,tol, 2*n);
+            t = lsqr(C, mvp(C,rb),tol, 2*n);
             r = rb - t;
         end
 
@@ -165,17 +168,17 @@ function [X, res, bnd] = nsrLSQR(A, C, b, na, k, tol, reorth)
         X(:,j) = x;
 
         % Compute the relative residual norm and its upper bound
-        rr = A' * (A*x-b);
-        if tol == 0
-            ss = P * rr;
-        else
-            t = lsqr(C, C*rr,tol, 2*n);
-            ss = rr - t;
-        end
+        % rr = A' * (A*x-b);
+        % if tol == 0
+        %     ss = P * rr;
+        % else
+        %     t = lsqr(C, C*rr,tol, 2*n);
+        %     ss = rr - t;
+        % end
 
-        rn = sqrt(ss'*ss);
-        res(j) = rn / Ab; 
-        bnd(j) = alpha*beta*abs(yj(j)) / Ab;
+        % rn = sqrt(ss'*ss);
+        % res(j) = rn / Ab; 
+        % bnd(j) = alpha*beta*abs(yj(j)) / Ab;
         
     end
     

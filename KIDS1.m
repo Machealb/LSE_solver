@@ -33,16 +33,17 @@ function [X1, X2, res1, res2] = KIDS1(A, C, b, d, tol1, tol2, k1, k2, type)
         error('Not Enough Inputs')
     end
 
-    [m, n] = size(A); 
-    [p, ~] = size(C);
-    if size(b,1) ~= m || size(C,2) ~= n || size(d,1) ~= p
-        error('The dimensions are not consistent')
-    end
+    % [m, n] = size(A); 
+    % [p, ~] = size(C);
+    % if size(b,1) ~= m || size(C,2) ~= n || size(d,1) ~= p
+    %     error('The dimensions are not consistent')
+    % end
 
-    kk = 50;
-    [~, ~, B, ~] = nsrGKB(A, C, ones(m,1), kk, 0, 1);
-    kk1 = size(B,2);
-    na = svd(B(kk1,kk1-1));
+    % kk = 50;
+    % [~, ~, B, ~] = nsrGKB(A, C, ones(m,1), kk, 0, 1);
+    % kk1 = size(B,2);
+    % na = svd(B(kk1,kk1-1));
+    na = 0.01;
     Ca = 1;
 
     [X1, res1, ~] = gLSQR(C, A, d, Ca, k1, tol1, 1, type);

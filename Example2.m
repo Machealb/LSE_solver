@@ -7,19 +7,19 @@ rng(2024);
 
 
 %%------------- test matrices---------------
-AL = mmread('cage9.mtx');
-m = 2500;
-A = AL(1:m, :);
-C = AL(m+1:end, :);
-[~,n] = size(A);
-
-% AL = mmread('pf2177.mtx');
-% m = 6500;
+% AL = mmread('cage9.mtx');
+% m = 2500;
 % A = AL(1:m, :);
 % C = AL(m+1:end, :);
 % [~,n] = size(A);
 
-type   = '2';
+AL = mmread('pf2177.mtx');
+m = 6500;
+A = AL(1:m, :);
+C = AL(m+1:end, :);
+[~,n] = size(A);
+
+type   = '3';
 [x, b, d] = gen_prob1(A, C, type);
 nx = norm(x);
 
@@ -29,11 +29,11 @@ k0  = 50;
 tol = 1e-8;
 reorth = 1;
 
-k1 = 100;
-k2 = 100;
-k3 = 100;
-[X11, X12, res11, res12] = KIDS1(A, C, b, d, tol, tol, k1, k2, type1);
-[x21, X22, res21, res22] = KIDS2(A, C, b, d, 0, tol, k3);
+k1 = 200;
+k2 = 200;
+k3 = 200;
+[X11, X12, res11, res12] = KIDS1(A, C, b, d, 0, 0, k1, k2, type1);
+[x21, X22, res21, res22] = KIDS2(A, C, b, d, 0, 0, k3);
 
 kk1 = size(X11,2);
 kk2 = size(X12,2);
